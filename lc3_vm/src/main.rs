@@ -11,6 +11,11 @@ use std::path::Path;
 use std::env;
 use std::process;
 
+use signal_hook::{iterator::Signals};
+//import SIGNINT from signal_hook
+use signal_hook::consts::signal::*;
+
+
 mod registers;
 mod opcodes;
 mod trapcodes;
@@ -81,6 +86,51 @@ fn mem_read(address:u16,memory: &mut Vec<u16>) -> u16{
 }
 
 
+fn disable_input_buffering() -> Result<(),io::Error>{
+    let stdin = 0;
+    let termios = termios::Termios::from_fd(stdin)?;
+    let mut new_termios = termios.clone();
+    new_termios.c_lflag &= !(ICANON | ECHO); // no echo and canonical mode
+    tcsetattr(stdin, TCSANOW, &mut new_termios)?;
+    Ok(())
+}
+
+fn restore_input_buffering() -> Result<(),io::Error>{
+    let stdin = 0;
+    let termios = termios::Termios::from_fd(stdin)?;
+    let mut new_termios = termios.clone();
+    new_termios.c_lflag |= ICANON | ECHO; // echo and canonical mode
+    tcsetattr(stdin, TCSANOW, &mut new_termios)?;
+    Ok(())
+}
+
+
+fn handle_control_c(sig:i32) -> Result<(),io::Error> {
+    restore_input_buffering()?;
+    println!("\n\n");
+    println!("The LC3 VM received Ctrl-C interrupt signal (= {}).", sig);
+    println!("So, exiting the process with exit code = 128 + 2 = 130.\n");
+    std::process::exit(130);
+}
+
+/// When the program is interrupted (with pressing `Control-C` keys), we want to restore the terminal settings back to normal.
+/// `spawn_control_c_handler` function will spawn a thread to handle `Control-C` (interrupt signal).
+/// When user presses `Control-C` keys, it restores terminal to its original, i.e. it turns value of `ICANON` and `ECHO` modes to 1.
+/// And exists the process with process code = 130 (as mentioned here, http://tldp.org/LDP/abs/html/exitcodes.html).
+pub fn spawn_control_c_handler() -> Result<(), Box<dyn std::error::Error>> {
+    //setup for interrupt handling.
+    let mut signals = Signals::new(&[SIGINT])?;
+    std::thread::spawn(move || {
+        for sig in signals.forever() {
+            //Interrupt (Ctrl + C) is handled as follows...
+            //Terminal is restored to its original configuration
+            //Process is exited with (130)
+            let _ = handle_control_c(sig);
+        }
+    });
+    Ok(())
+}
+
 fn main() {
     let mut memory = vec![0u16; 65536]; //0u16 stands for 0 of type u16
 
@@ -102,16 +152,9 @@ fn main() {
     }
 
     //Setup
-    
-    let stdin = 0;
-    let termios = termios::Termios::from_fd(stdin).unwrap();
-
-    let mut new_termios = termios.clone();
-    new_termios.c_iflag &= IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON;
-    new_termios.c_lflag &= !(ICANON | ECHO); // no echo and canonical mode
-
-    tcsetattr(stdin, TCSANOW, &mut new_termios).unwrap();
-    
+    spawn_control_c_handler().unwrap();
+    disable_input_buffering().unwrap();
+   
 
     let mut registers = Registers::new();
     
@@ -132,9 +175,7 @@ fn main() {
         }
     }
 
-    // reset the stdin to
-    // original termios data
-    tcsetattr(stdin, TCSANOW, &termios).unwrap();
+    restore_input_buffering().unwrap();
 
 
 }
