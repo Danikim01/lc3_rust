@@ -25,7 +25,7 @@ use registers::Registers;
 use crate::trapcodes::trapcodes::*;
 use memory::*;
 
-pub const MEMORY_SIZE: u32 = 1 << 16;
+const MEMORY_SIZE: usize = u16::MAX as usize;
 pub const PC_START: u16 = 0x3000; //default starting address for PC
 
 
@@ -108,10 +108,10 @@ fn main() {
     //Main Loop
     let mut running = true;
 
-    while running{
+    while registers.get_pc() < MEMORY_SIZE as u16 && running{
         let instr:u16 = mem_read(registers.r_pc, &mut memory);
         let op = instr >> 12;
-        println!("instr: {:04x} op: {}", instr, op);
+        registers.update_pc(registers.get_pc() + 1);
         match op {
             op if op == Opcode::ADD as u16 =>{
                 op_add(instr, &mut registers);
@@ -169,8 +169,7 @@ fn main() {
             }
         }
 
-        //reg[R_PC]++
-        registers.r_pc += 1;
+        
     }
 
 

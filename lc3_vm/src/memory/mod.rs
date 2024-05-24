@@ -22,30 +22,24 @@ fn swap16(x: u16) -> u16 {
 }
 
 pub fn read_image(image: &str, memory: &mut Vec<u16>) -> Result<bool, std::io::Error>{
-    let mut file = File::open(Path::new(image))?;
-  
-    // Leer el origen
-    let mut buffer = [0; 2];
-    file.read(&mut buffer).unwrap();
-    let origin = u16::from_be_bytes(buffer);
+    let path = Path::new(image);
+    let file = File::open(&path)?;
+    let mut reader = BufReader::new(file);
+    let mut address = reader.read_u16::<BigEndian>()? as usize;
+    loop {
+        match reader.read_u16::<BigEndian>() {
+            Ok(instruction) => {
+                memory[address] = instruction;
+                address += 1;
+            }
+            Err(_e) => {
+                break;
+            }
+        }
 
-    /* use a heap allocated array as buffer */
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-
-    /* store memory words from bytes */
-    for (i, chunk) in buffer.chunks(2).enumerate() {
-        mem_write(
-            origin + i as u16,
-            u16::from_be_bytes(chunk.try_into().unwrap()),
-        memory);
     }
-
-    Ok(true)
-    
+    return Ok(true);    
 }
-
-
 
 
 pub fn mem_read(address:u16,memory: &mut Vec<u16>) -> u16{

@@ -7,21 +7,21 @@ use crate::memory::*;
 #[derive(Debug)]
 pub enum Opcode{
     BR = 0, // branch
-    ADD,    // add
-    LD,     // load
-    ST,     // store
-    JSR,    // jump register
-    AND,    // bitwise and
-    LDR,    // load register
-    STR,    // store register
-    RTI,    // unused
-    NOT,    // bitwise not
-    LDI,    // load indirect
-    STI,    // store indirect
-    JMP,    // jump
-    RES,    // reserved (unused)
-    LEA,    // load effective address
-    TRAP,   // execute trap
+    ADD = 1,    // add
+    LD = 2,     // load
+    ST = 3,     // store
+    JSR = 4,    // jump register
+    AND = 5,    // bitwise and
+    LDR = 6,    // load register
+    STR = 7,    // store register
+    RTI = 8,    // unused
+    NOT = 9,    // bitwise not
+    LDI = 10,    // load indirect
+    STI = 11,    // store indirect
+    JMP = 12,    // jump
+    RES = 13,    // reserved (unused)
+    LEA = 14,    // load effective address
+    TRAP = 15,   // execute trap
 }
 
 pub fn sign_extend(mut x: u16, bit_count: u16) -> u16 {
