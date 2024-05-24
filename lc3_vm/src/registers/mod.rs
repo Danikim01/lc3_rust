@@ -60,6 +60,18 @@ impl Registers {
         Ok(())
     }
 
+    pub fn get_pc(&self) -> u16 {
+        self.r_pc
+    }
+
+    pub fn update_pc(&mut self, value: u16) {
+        self.r_pc = value;
+    }
+
+    pub fn get_cond(&self) -> u16 {
+        self.r_cond
+    }
+
     pub fn update_cond(&mut self, value: u16) {
         self.r_cond = value;
     }

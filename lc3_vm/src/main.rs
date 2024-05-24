@@ -3,11 +3,7 @@ extern crate termios;
 use termios::*;
 use std::io;
 use std::result::Result;
-use std::io::BufReader;
 
-use std::fs::File;
-use std::io::{Read,Write};
-use std::path::Path;
 use std::env;
 use std::process;
 
@@ -20,70 +16,16 @@ mod registers;
 mod opcodes;
 mod trapcodes;
 mod flags;
+mod memory;
 
 use crate::opcodes::*;
 
 use registers::Registers;
-use trapcodes::Trapcodes;
+use crate::trapcodes::trapcodes::*;
+use memory::*;
 
 pub const MEMORY_SIZE: usize = 1 << 16;
 pub const PC_START: u16 = 0x3000; //default starting address for PC
-
-
-//memory mapped registers
-pub enum MemoryMappedRegisters{
-    KBSR = 0xFE00, // keyboard status
-    KBDR = 0xFE02, // keyboard data
-}
-
-fn swap16(x: u16) -> u16 {
-    (x << 8) | (x >> 8)
-}
-
-
-
-pub fn read_image(image: &str, memory: &mut Vec<u16>) -> bool {
-    let path = Path::new(image);
-    let file = match File::open(&path) {
-        Err(why) => {
-            println!("Failed to open file: {}", why);
-            return false;
-        },
-        Ok(file) => file,
-    };
-
-    let mut reader = BufReader::new(file);
-    let mut buffer = [0u8; 2];
-
-    let mut address = 0;
-    while let Ok(n) = reader.read(&mut buffer) {
-        if n == 0 {
-            break;
-        }
-        let value = u16::from_le_bytes(buffer);
-        memory[address] = swap16(value);
-        address += 1;
-    }
-
-    true
-}
-
-
-fn mem_read(address:u16,memory: &mut Vec<u16>) -> u16{
-    if address == MemoryMappedRegisters::KBDR as u16{
-        let mut buffer = [0u8; 1];
-        std::io::stdin().read_exact(&mut buffer).unwrap();
-        //if a key was pressed
-        if buffer[0] != 0 {
-            memory[MemoryMappedRegisters::KBSR as usize] = 1 << 15;
-            memory[MemoryMappedRegisters::KBDR as usize] = buffer[0] as u16;
-        }else{
-            memory[MemoryMappedRegisters::KBSR as usize] = 0;
-        
-        }
-    }
-    return memory[address as usize];
-}
 
 
 fn disable_input_buffering() -> Result<(),io::Error>{
@@ -113,10 +55,7 @@ fn handle_control_c(sig:i32) -> Result<(),io::Error> {
     std::process::exit(130);
 }
 
-/// When the program is interrupted (with pressing `Control-C` keys), we want to restore the terminal settings back to normal.
-/// `spawn_control_c_handler` function will spawn a thread to handle `Control-C` (interrupt signal).
-/// When user presses `Control-C` keys, it restores terminal to its original, i.e. it turns value of `ICANON` and `ECHO` modes to 1.
-/// And exists the process with process code = 130 (as mentioned here, http://tldp.org/LDP/abs/html/exitcodes.html).
+
 pub fn spawn_control_c_handler() -> Result<(), Box<dyn std::error::Error>> {
     //setup for interrupt handling.
     let mut signals = Signals::new(&[SIGINT])?;
@@ -206,7 +145,7 @@ fn main() {
                 op_str(instr, &mut registers, &mut memory);
             },
             op if op == Opcode::TRAP as u16 =>{
-                op_trap(instr, &mut registers);
+                execute_trapcodes(instr, &mut registers, &mut memory);
             },
             op if op == Opcode::RTI as u16 =>{
                 println!("RTI is not implemented yet.");
