@@ -158,6 +158,7 @@ fn main() {
 
     let mut registers = Registers::new();
     
+    //Main Loop
     let running = true;
 
     while running{
@@ -167,12 +168,62 @@ fn main() {
         match op {
             op if op == Opcode::ADD as u16 =>{
                 op_add(instr, &mut registers);
-            }
+            },
+            op if op == Opcode::AND as u16 =>{
+                op_and(instr, &mut registers);
+            },
+            op if op == Opcode::NOT as u16 =>{
+                op_not(instr, &mut registers);
+            },
+            op if op == Opcode::BR as u16 =>{
+                op_br(instr, &mut registers);
+            },
+            op if op == Opcode::JMP as u16 =>{
+                op_jmp(instr, &mut registers);
+            },
+            op if op == Opcode::JSR as u16 =>{
+                op_jsr(instr, &mut registers);
+            },
+            op if op == Opcode::LD as u16 =>{
+                op_ld(instr, &mut registers, &mut memory);
+            },
+            op if op == Opcode::LDI as u16 =>{
+                op_ldi(instr, &mut registers, &mut memory);
+            },
+            op if op == Opcode::LDR as u16 =>{
+                op_ldr(instr, &mut registers, &mut memory);
+            },
+            op if op == Opcode::LEA as u16 =>{
+                op_lea(instr, &mut registers);
+            },
+            op if op == Opcode::ST as u16 =>{
+                op_st(instr, &mut registers, &mut memory);
+            },
+            op if op == Opcode::STI as u16 =>{
+                op_sti(instr, &mut registers, &mut memory);
+            },
+            op if op == Opcode::STR as u16 =>{
+                op_str(instr, &mut registers, &mut memory);
+            },
+            op if op == Opcode::TRAP as u16 =>{
+                op_trap(instr, &mut registers);
+            },
+            op if op == Opcode::RTI as u16 =>{
+                println!("RTI is not implemented yet.");
+                break;
+            },
+            op if op == Opcode::RES as u16 =>{
+                println!("RES is not implemented yet.");
+                break;
+            },
             _ => {
                 println!("Unkown opcode: {}", op);
                 break;
             }
         }
+
+        //reg[R_PC]++
+        registers.r_pc += 1;
     }
 
     restore_input_buffering().unwrap();
