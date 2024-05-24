@@ -1,8 +1,14 @@
-use std::io::BufReader;
+use std::error::Error;
+use std::io::{self, BufReader};
 
 use std::fs::File;
 use std::io::Read;
+use std::mem;
 use std::path::Path;
+use std::sync::TryLockResult;
+use byteorder::{BigEndian, ReadBytesExt};
+
+use crate::MEMORY_SIZE;
 
 
 //memory mapped registers
@@ -15,31 +21,31 @@ fn swap16(x: u16) -> u16 {
     (x << 8) | (x >> 8)
 }
 
-pub fn read_image(image: &str, memory: &mut Vec<u16>) -> bool {
-    let path = Path::new(image);
-    let file = match File::open(&path) {
-        Err(why) => {
-            println!("Failed to open file: {}", why);
-            return false;
-        },
-        Ok(file) => file,
-    };
+pub fn read_image(image: &str, memory: &mut Vec<u16>) -> Result<bool, std::io::Error>{
+    let mut file = File::open(Path::new(image))?;
+  
+    // Leer el origen
+    let mut buffer = [0; 2];
+    file.read(&mut buffer).unwrap();
+    let origin = u16::from_be_bytes(buffer);
 
-    let mut reader = BufReader::new(file);
-    let mut buffer = [0u8; 2];
+    /* use a heap allocated array as buffer */
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer).unwrap();
 
-    let mut address = 0;
-    while let Ok(n) = reader.read(&mut buffer) {
-        if n == 0 {
-            break;
-        }
-        let value = u16::from_le_bytes(buffer);
-        memory[address] = swap16(value);
-        address += 1;
+    /* store memory words from bytes */
+    for (i, chunk) in buffer.chunks(2).enumerate() {
+        mem_write(
+            origin + i as u16,
+            u16::from_be_bytes(chunk.try_into().unwrap()),
+        memory);
     }
 
-    true
+    Ok(true)
+    
 }
+
+
 
 
 pub fn mem_read(address:u16,memory: &mut Vec<u16>) -> u16{

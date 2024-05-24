@@ -24,19 +24,18 @@ pub enum Opcode{
     TRAP,   // execute trap
 }
 
-pub fn sign_extend(x: u16, bit_count: u16) -> u16 {
-    if (x >> (bit_count - 1)) & 1 == 1 {
-        x | (0xFFFF << bit_count)
-    } else {
-        x
-    }
+pub fn sign_extend(mut x: u16, bit_count: u16) -> u16 {
+    if (x >> (bit_count - 1)) & 1 != 0 {
+        x |= 0xFFFF << bit_count;
+    } 
+    x
 }
 
 
 fn update_flags(r: u16, register: &mut Registers) ->Result<(),io::Error> {
     if register.get(r)? == 0 {
         let _ = register.update_cond(ConditionFlags::ZRO as u16);
-    } else if (register.get(r)? >> 15) == 1 {
+    } else if (register.get(r)? >> 15) != 0 {
         let _ = register.update_cond(ConditionFlags::NEG as u16);
     } else {
         let _ = register.update_cond(ConditionFlags::POS as u16);
@@ -55,7 +54,8 @@ pub fn op_add(instr:u16,register:&mut Registers) ->Result<(),io::Error> {
 
     if imm_flag == 1 {
         let imm5 = sign_extend(instr & 0x1F, 5);
-        let _ = register.update(r0, register.get(r1)? + imm5);
+        let val = register.get(r1)? as u32 + imm5 as u32;
+        let _ = register.update(r0, val as u16);
     } else {
         let r2 = instr & 0x7;
         let val: u32 = register.get(r1)? as u32 + register.get(r2)? as u32;
@@ -100,7 +100,8 @@ pub fn op_br(instr:u16,register:&mut Registers) ->Result<(),io::Error> {
     let cond_flag = (instr >> 9) & 0x7;
 
     if cond_flag & register.get_cond() != 0 {
-        let _ = register.update_pc(register.get_pc() + pc_offset);
+        let val = register.get_pc() as u32 + pc_offset as u32;
+        let _ = register.update_pc(val as u16);
     }
 
     Ok(())
@@ -119,7 +120,8 @@ pub fn op_jsr(instr:u16,register:&mut Registers) ->Result<(),io::Error> {
     let _ = register.update(7, register.get_pc());
     if long_flag == 1 {
         let long_pc_offset = sign_extend(instr & 0x7FF, 11);
-        let _ = register.update_pc(register.get_pc() + long_pc_offset);
+        let val = register.get_pc() as u32 + long_pc_offset as u32;
+        let _ = register.update_pc(val as u16);
     } else {
         let _ = register.update_pc(register.get(r1)?);
     }
@@ -130,7 +132,8 @@ pub fn op_jsr(instr:u16,register:&mut Registers) ->Result<(),io::Error> {
 pub fn op_ld(instr:u16,register:&mut Registers,memory:&mut Vec<u16>) ->Result<(),io::Error> {
     let r0 = (instr >> 9) & 0x7;
     let pc_offset = sign_extend(instr & 0x1FF, 9);
-    let value = mem_read(register.get_pc() + pc_offset, memory);
+    let mem = register.get_pc() as u32 + pc_offset as u32;
+    let value = mem_read(mem as u16, memory);
     let _ = register.update(r0, value);
     update_flags(r0, register)?;
     Ok(())
@@ -149,8 +152,9 @@ pub fn op_ldr(instr:u16,register:&mut Registers,memory:&mut Vec<u16>) ->Result<(
     let r0 = (instr >> 9) & 0x7;
     let r1 = (instr >> 6) & 0x7;
     let offset = sign_extend(instr & 0x3F, 6);
-    let value = mem_read(register.get(r1)? + offset, memory);
-    let _ = register.update(r0, value);
+    let val = register.get(r1)? as u32 + offset as u32;
+    let mem_value = mem_read(val as u16, memory);
+    let _ = register.update(r0, mem_value);
     update_flags(r0, register)?;
     Ok(())
 }
@@ -158,7 +162,8 @@ pub fn op_ldr(instr:u16,register:&mut Registers,memory:&mut Vec<u16>) ->Result<(
 pub fn op_lea(instr:u16,register:&mut Registers) ->Result<(),io::Error> {
     let r0 = (instr >> 9) & 0x7;
     let pc_offset = sign_extend(instr & 0x1FF, 9);
-    let _ = register.update(r0, register.get_pc() + pc_offset);
+    let val = register.get_pc() as u32 + pc_offset as u32;
+    let _ = register.update(r0, val as u16);
     update_flags(r0, register)?;
     Ok(())
 }
@@ -166,14 +171,16 @@ pub fn op_lea(instr:u16,register:&mut Registers) ->Result<(),io::Error> {
 pub fn op_st(instr:u16,register:&mut Registers,memory:&mut Vec<u16>) ->Result<(),io::Error> {
     let r0 = (instr >> 9) & 0x7;
     let pc_offset = sign_extend(instr & 0x1FF, 9);
-    let _ = mem_write(register.get_pc() + pc_offset, register.get(r0)?, memory);
+    let val = register.get_pc() as u32 + pc_offset as u32;
+    let _ = mem_write(val as u16, register.get(r0)?, memory);
     Ok(())
 }
 
 pub fn op_sti(instr:u16,register:&mut Registers,memory:&mut Vec<u16>) ->Result<(),io::Error> {
     let r0 = (instr >> 9) & 0x7;
     let pc_offset = sign_extend(instr & 0x1FF, 9);
-    let _ = mem_write(mem_read(register.get_pc() + pc_offset, memory), register.get(r0)?, memory);
+    let val = register.get_pc() as u32 + pc_offset as u32;
+    let _ = mem_write(mem_read(val as u16, memory), register.get(r0)?, memory);
     Ok(())
 }
 
@@ -181,6 +188,8 @@ pub fn op_str(instr:u16,register:&mut Registers,memory:&mut Vec<u16>) ->Result<(
     let r0 = (instr >> 9) & 0x7;
     let r1 = (instr >> 6) & 0x7;
     let offset = sign_extend(instr & 0x3F, 6);
-    let _ = mem_write(register.get(r1)? + offset, register.get(r0)?, memory);
+    let address = register.get(r1)? as u32 + offset as u32;
+    let address = address as u16;
+    let _ = mem_write(address, register.get(r0)?, memory);
     Ok(())
 }

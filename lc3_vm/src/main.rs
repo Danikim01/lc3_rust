@@ -2,6 +2,7 @@ extern crate termios;
 
 use termios::*;
 use std::io;
+use std::mem;
 use std::result::Result;
 
 use std::env;
@@ -24,7 +25,7 @@ use registers::Registers;
 use crate::trapcodes::trapcodes::*;
 use memory::*;
 
-pub const MEMORY_SIZE: usize = 1 << 16;
+pub const MEMORY_SIZE: u32 = 1 << 16;
 pub const PC_START: u16 = 0x3000; //default starting address for PC
 
 
@@ -49,9 +50,6 @@ fn restore_input_buffering() -> Result<(),io::Error>{
 
 fn handle_control_c(sig:i32) -> Result<(),io::Error> {
     restore_input_buffering()?;
-    println!("\n\n");
-    println!("The LC3 VM received Ctrl-C interrupt signal (= {}).", sig);
-    println!("So, exiting the process with exit code = 128 + 2 = 130.\n");
     std::process::exit(130);
 }
 
@@ -84,26 +82,36 @@ fn main() {
     }
 
     for i in 1..args.len() {
-        if !read_image(&args[i], &mut memory)  {
-            println!("Failed to load image: {}", args[i]);
-            process::exit(1);
+        match read_image(&args[i], &mut memory) {
+            Ok(true) => {
+                println!("Loaded image: {}", args[i]);
+            },
+            Ok(false) => {
+                println!("Failed to load image: {}", args[i]);
+                process::exit(1);
+            },
+            Err(e) => {
+                println!("Error: {}", e);
+                process::exit(1);
+            }
         }
     }
 
+    
     //Setup
     spawn_control_c_handler().unwrap();
     disable_input_buffering().unwrap();
-   
+
 
     let mut registers = Registers::new();
-    
+
     //Main Loop
-    let running = true;
+    let mut running = true;
 
     while running{
         let instr:u16 = mem_read(registers.r_pc, &mut memory);
         let op = instr >> 12;
-
+        println!("instr: {:04x} op: {}", instr, op);
         match op {
             op if op == Opcode::ADD as u16 =>{
                 op_add(instr, &mut registers);
@@ -145,7 +153,7 @@ fn main() {
                 op_str(instr, &mut registers, &mut memory);
             },
             op if op == Opcode::TRAP as u16 =>{
-                execute_trapcodes(instr, &mut registers, &mut memory);
+                execute_trapcodes(instr, &mut registers, &mut memory,&mut running);
             },
             op if op == Opcode::RTI as u16 =>{
                 println!("RTI is not implemented yet.");
@@ -164,6 +172,7 @@ fn main() {
         //reg[R_PC]++
         registers.r_pc += 1;
     }
+
 
     restore_input_buffering().unwrap();
 
