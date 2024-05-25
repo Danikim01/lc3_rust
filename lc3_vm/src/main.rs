@@ -9,7 +9,6 @@ use std::env;
 use std::process;
 
 use signal_hook::{iterator::Signals};
-//import SIGNINT from signal_hook
 use signal_hook::consts::signal::*;
 
 
@@ -62,7 +61,7 @@ pub fn spawn_control_c_handler() -> Result<(), Box<dyn std::error::Error>> {
             //Interrupt (Ctrl + C) is handled as follows...
             //Terminal is restored to its original configuration
             //Process is exited with (130)
-            println!("Interrupted by Ctrl + C");
+            println!("Interrupted by Ctrl + C, exiting...");
             let _ = handle_control_c(sig);
         }
     });

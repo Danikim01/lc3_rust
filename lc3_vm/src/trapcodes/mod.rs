@@ -3,7 +3,6 @@ pub mod trapcodes{
     use crate::memory::mem_read;
     use crate::registers::Registers;
     use std::io::{self, Read,Write};
-    use std::process;
     
     pub const TRAP_GETC: u16 = 0x20; // get character from keyboard, not echoed onto the terminal
     pub const TRAP_OUT: u16 = 0x21; // output a character
@@ -26,10 +25,8 @@ pub mod trapcodes{
     }
 
     pub fn execute_trapcodes(trap_vector: u16,register:&mut Registers,memory:&mut Vec<u16>,running:&mut bool){
-        //let _ = register.update(7, register.get_pc());
-
+        let _ = register.update(7, register.get_pc());
         let instr = trap_vector & 0xFF;
-
         match instr {
             TRAP_GETC => {
                 let mut buffer = [0u8; 1];
@@ -52,13 +49,12 @@ pub mod trapcodes{
                 io::stdout().flush().expect("failed to flush");
             },
             TRAP_IN => {
-                print!("Enter a  character : ");
+                print!("Enter a character : ");
                 let mut buffer = [0; 1];
                 std::io::stdin().read_exact(&mut buffer).unwrap();
                 println!("{}", buffer[0] as char);
                 io::stdout().flush().expect("failed to flush");
                 register.update(0, buffer[0] as u16);
-                //update_flags
                 update_flags(016, register);
             },
             TRAP_PUTSP => {

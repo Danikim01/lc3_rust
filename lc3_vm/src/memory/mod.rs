@@ -17,29 +17,24 @@ pub enum MemoryMappedRegisters{
     KBDR = 0xFE02, // keyboard data
 }
 
-fn swap16(x: u16) -> u16 {
-    (x << 8) | (x >> 8)
-}
 
 pub fn read_image(image: &str, memory: &mut Vec<u16>) -> Result<bool, std::io::Error>{
     let path = Path::new(image);
-    let file = File::open(&path)?;
-    let mut reader = BufReader::new(file);
-    let mut address = reader.read_u16::<BigEndian>()? as usize;
-    loop {
-        match reader.read_u16::<BigEndian>() {
-            Ok(instruction) => {
-                memory[address] = instruction;
-                address += 1;
-            }
-            Err(_e) => {
-                break;
-            }
-        }
-
+    let mut file = File::open(&path)?;
+    let mut origin_buf = [0u8; 2];
+    file.read_exact(&mut origin_buf)?;
+    let origin = u16::from_be_bytes(origin_buf);
+    let max_read = MEMORY_SIZE - origin as usize;
+    let p = &mut memory[origin as usize..origin as usize + max_read];
+    let mut read_buf = vec![0u8; max_read * 2];
+    let read_bytes = file.read(&mut read_buf)?;
+    for i in 0..read_bytes / 2 {
+        p[i] = u16::from_be_bytes([read_buf[2 * i], read_buf[2 * i + 1]]);
     }
     return Ok(true);    
 }
+
+
 
 
 pub fn mem_read(address:u16,memory: &mut Vec<u16>) -> u16{
