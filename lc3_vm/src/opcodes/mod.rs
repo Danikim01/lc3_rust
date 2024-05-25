@@ -118,7 +118,7 @@ pub fn op_jsr(instr:u16,register:&mut Registers) ->Result<(),io::Error> {
     let r1 = (instr >> 6) & 0x7;
 
     let _ = register.update(7, register.get_pc());
-    if long_flag == 1 {
+    if long_flag != 0 {
         let long_pc_offset = sign_extend(instr & 0x7FF, 11);
         let val = register.get_pc() as u32 + long_pc_offset as u32;
         let _ = register.update_pc(val as u16);

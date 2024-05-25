@@ -43,7 +43,7 @@ pub fn read_image(image: &str, memory: &mut Vec<u16>) -> Result<bool, std::io::E
 
 
 pub fn mem_read(address:u16,memory: &mut Vec<u16>) -> u16{
-    if address == MemoryMappedRegisters::KBDR as u16{
+    if address == MemoryMappedRegisters::KBSR as u16{
         let mut buffer = [0u8; 1];
         std::io::stdin().read_exact(&mut buffer).unwrap();
         //if a key was pressed
