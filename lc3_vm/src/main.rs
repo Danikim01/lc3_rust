@@ -62,6 +62,7 @@ pub fn spawn_control_c_handler() -> Result<(), Box<dyn std::error::Error>> {
             //Interrupt (Ctrl + C) is handled as follows...
             //Terminal is restored to its original configuration
             //Process is exited with (130)
+            println!("Interrupted by Ctrl + C");
             let _ = handle_control_c(sig);
         }
     });
@@ -169,7 +170,6 @@ fn main() {
             }
         }
     }
-
 
     restore_input_buffering().unwrap();
 
